@@ -1,0 +1,4 @@
+1. Raspberry Pi 3 model B
+2. The above is needed as other models of Raspberry Pis do not have Wifi Broadcast/Receiver suport
+3. Other boards with above hardware capabilites can be used but we have not tested our build on them
+
