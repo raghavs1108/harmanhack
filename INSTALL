@@ -1,0 +1,49 @@
+If you are reading this file, I hope you would have gone through HARDWARE_REQ.txt
+
+Follow these steps if the above has been done:
+
+
+INITIAL SETUP:
+
+
+1. Install the Arch Image to the Pi SD Card
+2. Grow the partition to use the entire SD card using Gparted or a similar tool.
+3. Boot up the system, and ssh in.
+4. Run # pacman -Syu and update pacman.
+5. Because you are ssh’ing in, you need to generate entropy when you create the pacman PGP key. Install haveged, and generate the key: # pacman -S haveged && haveged -w 1024 && pacman-key --init && pkill haveged && pacman -Rs haveged
+6. Install some useful packages: # pacman -S dialog wireless_tools netcfg NOTE: You may need to reboot in order for the usb wifi dongle to show up in iwconfig.
+7. Edit rc.conf to your liking: # nano /etc/rc.conf
+
+Setting up Wireless Networking (Managed)
+
+1. In order to get wireless working, you need to install some more packages: # pacman -S jshon git base-devel fakeroot
+2. Then install packer to access the AUR repository: # cd /tmp/ && wget http://aur.archlinux.org/packages/pa/packer/PKGBUILD
+3. # makepkg --asroot PKGBUILD Note: Arch does not recommend the –asroot flag, but I’m not concerned with security at the moment.
+4. # pacman -U packer*
+5. Then: # packer -Syu && packer -S wpa_auto newlan
+6. Next configure newlan: # newlan -n PROFILENAME and follow the instructions.
+7. Edit your netcfg configuration file to use the PROFILENAME you just created in newlan. # nano /etc/conf.d/netcfg
+8. Then enable the service to start with systemd at boot: # systemctl enable netcfg@PROFILENAME.service
+
+Setting up Wireless Networking (ad-hoc)
+
+1. Before you unplug the ethernet, install this package # packer -S babeld . Note: If the Pi complains about system architecture, just change it in the PKGBUILD.
+2. First we need to undo some of the previous steps used for a managed wireless connection. To make sure your wifi card doesn’t associate on boot, execute # systemctl disable netcfg@PROFILENAME.service && reboot  if you followed the previous tutorial.
+3. Now your Pi should be up and running again and the wifi dongle should not be powered up. Power up the wifi dongle: # ip link set wlan0 up .
+4. Now let’s configure the network: # iwconfig wlan0 mode ad-hoc channel 11 essid "mesh" .
+5. Right now we need to manually assign each Pi a unique ip address: # ip addr add 192.168.13.33 dev wlan0 . As you repeat these steps on each Pi, give the next one a different address, for example 192.168.13.34, and so forth.
+6. And now we fire up babeld: # babeld wlan0 & .
+7. If everything goes well, you should be on your way to a mesh network. Execute the following steps on the remaining Pis. The routes will be updated automagically as nodes enter or exit the network. Use # route to display the other nodes.
+
+Setting up Internet Access on the Mesh Network
+
+1. First, enable ip forwarding: # echo 1 > /proc/sys/net/ipv4/ip_forward
+2. Now modify the IP tables so the subnet on one interface can talk to the subnet on the other interface. In this case, eth0 is the external network card and wlan0 is the internal network card:
+   1. # iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+   2. # iptables -A FORWARD -i eth0 -o wlan0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+   3. # iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
+3. Now we have to add a route so the other Pis will know where to send traffic not subnet specific, aka traffic to the internet. A protocol must be specified in order for babeld to pass it along to the mesh. Issue this command on the node that is connected to the internet; it will propagate to the other nodes. In this case, 192.168.1.1 is the address of my router that leads to the internet, not the Pi that is acting as a router: # ip route add 0.0.0.0/0 via 192.168.1.1 dev eth0 proto static
+4. All the nodes on the mesh network should now have access to internet IP addresses. But, if you are like me and you would like to type in domain names instead of numbers, we need to set up DNS access on the rest of the nodes. The node connected to the internet should already have it due to dhcpcd. Modify the following file on the rest of the nodes to enable DNS lookup: # nano /etc/resolv.conf . Append the file with the address of your DNS server. In this case my router acts as my DNS server: nameserver 192.168.1.1 . The change should take effect immediately, and you will be able to ping google.com and other addresses.
+5. If you want to see statistics about your network, try installing nmon: # pacman -S nmon .
+
+
