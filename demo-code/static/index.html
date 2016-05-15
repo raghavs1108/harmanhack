@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+	<script type="text/javascript" src="/static/jquery.min.js"></script>
+	<script type="text/javascript">
+		$(document).ready(function(){
+			$('#record').click(function(){
+				$.ajax({
+					url: '/record',
+					method: 'GET'
+				});
+			});
+
+			$('#play').click(function(){
+				$.ajax({
+					url: '/play',
+					method: 'GET'
+				});
+			});
+		});
+
+
+	</script>
+</head>
+<body>
+	<img src="/static/record.png" id="record" height="100" width="100"></img>
+	<img src="/static/play.png" id="play" height="100" width="100"></img>
+</body>
+</html>
